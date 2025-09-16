@@ -29,7 +29,7 @@ public class JobService : IJobService
         var job = await _jobRepository.GetByIdAsync(id, cancellationToken);
         if (job == null)
         {
-            throw new JobNotFoundException($"Job with ID {id} not found");
+            throw new JobNotFoundException(id);
         }
 
         return _mapper.Map<JobDto>(job);
@@ -55,7 +55,7 @@ public class JobService : IJobService
 
     public async Task<IEnumerable<JobDto>> GetByCategoryAsync(Guid categoryId, CancellationToken cancellationToken = default)
     {
-        var jobs = await _jobRepository.GetByCategoryIdAsync(categoryId, cancellationToken);
+        var jobs = await _jobRepository.GetJobsByCategoryAsync(categoryId, cancellationToken);
         return _mapper.Map<IEnumerable<JobDto>>(jobs);
     }
 
@@ -82,7 +82,7 @@ public class JobService : IJobService
         var job = await _jobRepository.GetByIdAsync(id, cancellationToken);
         if (job == null)
         {
-            throw new JobNotFoundException($"Job with ID {id} not found");
+            throw new JobNotFoundException(id);
         }
 
         job.UpdateDetails(
@@ -90,12 +90,6 @@ public class JobService : IJobService
             updateJobDto.Description,
             updateJobDto.CronExpression,
             updateJobDto.Tags);
-
-        if (updateJobDto.Configuration != null)
-        {
-            var configuration = _mapper.Map<Domain.ValueObjects.JobConfiguration>(updateJobDto.Configuration);
-            job.UpdateConfiguration(configuration);
-        }
 
         var updatedJob = await _jobRepository.UpdateAsync(job, cancellationToken);
         return _mapper.Map<JobDto>(updatedJob);
@@ -106,7 +100,7 @@ public class JobService : IJobService
         var job = await _jobRepository.GetByIdAsync(id, cancellationToken);
         if (job == null)
         {
-            throw new JobNotFoundException($"Job with ID {id} not found");
+            throw new JobNotFoundException(id);
         }
 
         await _jobRepository.DeleteAsync(job, cancellationToken);
@@ -117,7 +111,7 @@ public class JobService : IJobService
         var job = await _jobRepository.GetByIdAsync(id, cancellationToken);
         if (job == null)
         {
-            throw new JobNotFoundException($"Job with ID {id} not found");
+            throw new JobNotFoundException(id);
         }
 
         job.Activate();
@@ -130,7 +124,7 @@ public class JobService : IJobService
         var job = await _jobRepository.GetByIdAsync(id, cancellationToken);
         if (job == null)
         {
-            throw new JobNotFoundException($"Job with ID {id} not found");
+            throw new JobNotFoundException(id);
         }
 
         job.Pause();
@@ -143,7 +137,7 @@ public class JobService : IJobService
         var job = await _jobRepository.GetByIdAsync(id, cancellationToken);
         if (job == null)
         {
-            throw new JobNotFoundException($"Job with ID {id} not found");
+            throw new JobNotFoundException(id);
         }
 
         job.Resume();
@@ -156,14 +150,14 @@ public class JobService : IJobService
         var job = await _jobRepository.GetByIdAsync(id, cancellationToken);
         if (job == null)
         {
-            throw new JobNotFoundException($"Job with ID {id} not found");
+            throw new JobNotFoundException(id);
         }
 
         var user = await _userRepository.GetByIdAsync(triggeredById, cancellationToken);
-        var triggeredBy = user?.Name ?? "Unknown";
+        var triggeredBy = user?.GetFullName() ?? "Unknown";
 
         // Create job execution record
-        var execution = JobExecution.Create(id, triggeredBy);
+        var execution = JobExecution.Create(id);
 
         // For now, this will just create the execution record
         // The actual execution logic would be handled by the background service
@@ -180,7 +174,7 @@ public class JobService : IJobService
         var job = await _jobRepository.GetByIdAsync(id, cancellationToken);
         if (job == null)
         {
-            throw new JobNotFoundException($"Job with ID {id} not found");
+            throw new JobNotFoundException(id);
         }
 
         var executions = job.Executions
@@ -203,13 +197,13 @@ public class JobService : IJobService
 
     public async Task<IEnumerable<JobDto>> SearchAsync(string query, CancellationToken cancellationToken = default)
     {
-        var jobs = await _jobRepository.SearchAsync(query, cancellationToken);
+        var jobs = await _jobRepository.SearchJobsAsync(query, cancellationToken);
         return _mapper.Map<IEnumerable<JobDto>>(jobs);
     }
 
     public async Task<IEnumerable<JobDto>> GetJobsDueForExecutionAsync(CancellationToken cancellationToken = default)
     {
-        var jobs = await _jobRepository.GetJobsDueForExecutionAsync(cancellationToken);
+        var jobs = await _jobRepository.GetJobsDueForExecutionAsync(DateTime.UtcNow, cancellationToken);
         return _mapper.Map<IEnumerable<JobDto>>(jobs);
     }
 }

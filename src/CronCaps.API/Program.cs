@@ -62,8 +62,7 @@ builder.Services.AddCors(options =>
 });
 
 // Health checks
-builder.Services.AddHealthChecks()
-    .AddDbContextCheck<CronCapsDbContext>();
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 

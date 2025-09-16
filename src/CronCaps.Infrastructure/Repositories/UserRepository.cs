@@ -18,32 +18,32 @@ public class UserRepository : IUserRepository
     public async Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _context.Users
-            .Include(u => u.Team)
+            .Include(u => u.Teams)
             .FirstOrDefaultAsync(u => u.Id == id && u.IsActive, cancellationToken);
     }
 
     public async Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
     {
         return await _context.Users
-            .Include(u => u.Team)
-            .FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower() && u.IsActive, cancellationToken);
+            .Include(u => u.Teams)
+            .FirstOrDefaultAsync(u => u.Email.Value.ToLower() == email.ToLower() && u.IsActive, cancellationToken);
     }
 
     public async Task<IEnumerable<User>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         return await _context.Users
-            .Include(u => u.Team)
+            .Include(u => u.Teams)
             .Where(u => u.IsActive)
-            .OrderBy(u => u.Name)
+            .OrderBy(u => u.Username)
             .ToListAsync(cancellationToken);
     }
 
     public async Task<IEnumerable<User>> GetByTeamIdAsync(Guid teamId, CancellationToken cancellationToken = default)
     {
         return await _context.Users
-            .Include(u => u.Team)
-            .Where(u => u.TeamId == teamId && u.IsActive)
-            .OrderBy(u => u.Name)
+            .Include(u => u.Teams)
+            .Where(u => u.Teams.Any(t => t.Id == teamId) && u.IsActive)
+            .OrderBy(u => u.Username)
             .ToListAsync(cancellationToken);
     }
 
@@ -75,7 +75,7 @@ public class UserRepository : IUserRepository
 
     public async Task<bool> EmailExistsAsync(string email, Guid? excludeId = null, CancellationToken cancellationToken = default)
     {
-        var query = _context.Users.Where(u => u.Email.ToLower() == email.ToLower() && u.IsActive);
+        var query = _context.Users.Where(u => u.Email.Value.ToLower() == email.ToLower() && u.IsActive);
 
         if (excludeId.HasValue)
         {
@@ -93,23 +93,23 @@ public class UserRepository : IUserRepository
     public async Task<User?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default)
     {
         return await _context.Users
-            .Include(u => u.Team)
-            .FirstOrDefaultAsync(u => u.Name.ToLower() == username.ToLower() && u.IsActive, cancellationToken);
+            .Include(u => u.Teams)
+            .FirstOrDefaultAsync(u => u.Username.ToLower() == username.ToLower() && u.IsActive, cancellationToken);
     }
 
     public async Task<User?> GetByRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken = default)
     {
-        // For now, we'll implement a simple approach - in a real app, you'd store refresh tokens
-        // This is a placeholder implementation
-        return null;
+        return await _context.Users
+            .Include(u => u.Teams)
+            .FirstOrDefaultAsync(u => u.RefreshToken == refreshToken && u.IsActive, cancellationToken);
     }
 
     public async Task<IEnumerable<User>> GetByRoleAsync(UserRole role, CancellationToken cancellationToken = default)
     {
         return await _context.Users
-            .Include(u => u.Team)
+            .Include(u => u.Teams)
             .Where(u => u.Role == role && u.IsActive)
-            .OrderBy(u => u.Name)
+            .OrderBy(u => u.Username)
             .ToListAsync(cancellationToken);
     }
 
@@ -122,17 +122,17 @@ public class UserRepository : IUserRepository
     {
         var search = searchTerm.ToLower();
         return await _context.Users
-            .Include(u => u.Team)
+            .Include(u => u.Teams)
             .Where(u => u.IsActive &&
-                       (u.Name.ToLower().Contains(search) ||
-                        u.Email.ToLower().Contains(search)))
-            .OrderBy(u => u.Name)
+                       (u.Username.ToLower().Contains(search) ||
+                        u.Email.Value.ToLower().Contains(search)))
+            .OrderBy(u => u.Username)
             .ToListAsync(cancellationToken);
     }
 
     public async Task<bool> IsUsernameUniqueAsync(string username, Guid? excludeUserId = null, CancellationToken cancellationToken = default)
     {
-        var query = _context.Users.Where(u => u.Name.ToLower() == username.ToLower() && u.IsActive);
+        var query = _context.Users.Where(u => u.Username.ToLower() == username.ToLower() && u.IsActive);
 
         if (excludeUserId.HasValue)
         {

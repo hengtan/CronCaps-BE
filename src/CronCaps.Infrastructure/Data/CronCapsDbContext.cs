@@ -23,16 +23,24 @@ public class CronCapsDbContext : DbContext
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.Email).IsRequired().HasMaxLength(255);
-            entity.HasIndex(e => e.Email).IsUnique();
+            entity.Property(e => e.Username).IsRequired().HasMaxLength(100);
+            entity.HasIndex(e => e.Username).IsUnique();
             entity.Property(e => e.PasswordHash).IsRequired();
             entity.Property(e => e.Role).IsRequired().HasConversion<string>();
+            entity.Property(e => e.FirstName).HasMaxLength(100);
+            entity.Property(e => e.LastName).HasMaxLength(100);
+            entity.Property(e => e.RefreshToken).HasMaxLength(500);
 
-            entity.HasOne(e => e.Team)
-                  .WithMany(t => t.Members)
-                  .HasForeignKey(e => e.TeamId)
-                  .OnDelete(DeleteBehavior.SetNull);
+            // Configure Email as owned type
+            entity.OwnsOne(e => e.Email, email =>
+            {
+                email.Property(e => e.Value).IsRequired().HasMaxLength(255);
+            });
+
+            entity.HasIndex("Email_Value").IsUnique();
+
+            entity.HasMany(e => e.Teams)
+                  .WithMany(t => t.Members);
         });
 
         // Team configuration
@@ -70,14 +78,17 @@ public class CronCapsDbContext : DbContext
             // Configure JobConfiguration as owned type
             entity.OwnsOne(e => e.Configuration, config =>
             {
-                config.Property(c => c.TimeoutSeconds).IsRequired();
+                config.Property(c => c.Type).IsRequired().HasConversion<string>();
                 config.Property(c => c.MaxRetries).IsRequired();
-                config.Property(c => c.NotifyOnFailure).IsRequired();
-                config.Property(c => c.NotifyOnSuccess).IsRequired();
+                config.Property(c => c.AllowConcurrent).IsRequired();
                 config.Property(c => c.NotificationEmail).HasMaxLength(255);
-                config.Property(c => c.Environment).HasConversion(
+                config.Property(c => c.Timeout).HasConversion(
+                    v => v.HasValue ? v.Value.Ticks : (long?)null,
+                    v => v.HasValue ? TimeSpan.FromTicks(v.Value) : null
+                );
+                config.Property(c => c.Parameters).HasConversion(
                     v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
-                    v => System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? new Dictionary<string, string>()
+                    v => System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? new Dictionary<string, object>()
                 );
             });
 
@@ -101,10 +112,15 @@ public class CronCapsDbContext : DbContext
         modelBuilder.Entity<JobExecution>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.ExecutionId).IsRequired().HasMaxLength(100);
             entity.Property(e => e.Status).IsRequired().HasConversion<string>();
             entity.Property(e => e.Output).HasColumnType("text");
             entity.Property(e => e.ErrorMessage).HasColumnType("text");
-            entity.Property(e => e.TriggeredBy).HasMaxLength(100);
+            entity.Property(e => e.ServerName).HasMaxLength(100);
+            entity.Property(e => e.Metadata).HasConversion(
+                v => v != null ? System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null) : null,
+                v => v != null ? System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(v, (System.Text.Json.JsonSerializerOptions?)null) : null
+            );
 
             entity.HasOne(e => e.Job)
                   .WithMany(j => j.Executions)
