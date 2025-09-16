@@ -1,0 +1,126 @@
+version: '3.8'
+
+services:
+  # PostgreSQL - Main Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: croncaps_postgres
+    environment:
+      POSTGRES_DB: croncaps
+      POSTGRES_USER: croncaps_user
+      POSTGRES_PASSWORD: croncaps_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U croncaps_user -d croncaps"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MongoDB - Logs & Analytics
+  mongodb:
+    image: mongo:7.0
+    container_name: croncaps_mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: croncaps_dev_password
+      MONGO_INITDB_DATABASE: croncaps_logs
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  # Redis - Cache & Session Store
+  redis:
+    image: redis:7.2-alpine
+    container_name: croncaps_redis
+    command: redis-server --appendonly yes --requirepass croncaps_dev_password
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Hangfire Dashboard (Optional - for development monitoring)
+  hangfire-web:
+    image: nginx:alpine
+    container_name: croncaps_hangfire_web
+    ports:
+      - "8081:80"
+    volumes:
+      - ./scripts/hangfire-nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - postgres
+    profiles:
+      - monitoring
+
+  # Adminer - Database Management (Optional)
+  adminer:
+    image: adminer:4.8.1
+    container_name: croncaps_adminer
+    ports:
+      - "8082:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: dracula
+    depends_on:
+      - postgres
+    profiles:
+      - tools
+
+  # Mongo Express - MongoDB Management (Optional)
+  mongo-express:
+    image: mongo-express:1.0.2
+    container_name: croncaps_mongo_express
+    ports:
+      - "8083:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: croncaps_dev_password
+      ME_CONFIG_MONGODB_URL: mongodb://root:croncaps_dev_password@mongodb:27017/
+      ME_CONFIG_BASICAUTH: false
+    depends_on:
+      - mongodb
+    profiles:
+      - tools
+
+  # Redis Commander - Redis Management (Optional)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: croncaps_redis_commander
+    ports:
+      - "8084:8081"
+    environment:
+      REDIS_HOSTS: local:redis:6379:0:croncaps_dev_password
+      HTTP_USER: admin
+      HTTP_PASSWORD: admin
+    depends_on:
+      - redis
+    profiles:
+      - tools
+
+volumes:
+  postgres_data:
+    driver: local
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  default:
+    name: croncaps_network
+    driver: bridge
