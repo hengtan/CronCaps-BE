@@ -5,10 +5,10 @@ namespace CronCaps.Domain.Entities;
 
 public class Job : BaseEntity
 {
-    public string Name { get; private set; }
+    public string Name { get; private set; } = null!;
     public string? Description { get; private set; }
-    public CronExpression CronExpression { get; private set; }
-    public JobConfiguration Configuration { get; private set; }
+    public CronExpression CronExpression { get; private set; } = null!;
+    public JobConfiguration Configuration { get; private set; } = null!;
     public JobStatus Status { get; private set; }
     public Guid CreatedById { get; private set; }
     public Guid? TeamId { get; private set; }

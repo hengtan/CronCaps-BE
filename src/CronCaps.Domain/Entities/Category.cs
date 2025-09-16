@@ -2,9 +2,9 @@ namespace CronCaps.Domain.Entities;
 
 public class Category : BaseEntity
 {
-    public string Name { get; private set; }
+    public string Name { get; private set; } = null!;
     public string? Description { get; private set; }
-    public string Color { get; private set; }
+    public string Color { get; private set; } = null!;
     public bool IsActive { get; private set; }
     public Guid CreatedById { get; private set; }
 

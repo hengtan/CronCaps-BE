@@ -5,9 +5,9 @@ namespace CronCaps.Domain.Entities;
 
 public class User : BaseEntity
 {
-    public string Username { get; private set; }
-    public Email Email { get; private set; }
-    public string PasswordHash { get; private set; }
+    public string Username { get; private set; } = null!;
+    public Email Email { get; private set; } = null!;
+    public string PasswordHash { get; private set; } = null!;
     public string? FirstName { get; private set; }
     public string? LastName { get; private set; }
     public UserRole Role { get; private set; }

@@ -5,7 +5,7 @@ namespace CronCaps.Domain.Entities;
 public class JobExecution : BaseEntity
 {
     public Guid JobId { get; private set; }
-    public string ExecutionId { get; private set; }
+    public string ExecutionId { get; private set; } = null!;
     public ExecutionStatus Status { get; private set; }
     public DateTime StartedAt { get; private set; }
     public DateTime? FinishedAt { get; private set; }
